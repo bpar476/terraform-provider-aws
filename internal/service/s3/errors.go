@@ -7,5 +7,6 @@ const (
 	ErrCodeNoSuchConfiguration                  = "NoSuchConfiguration"
 	ErrCodeNoSuchCORSConfiguration              = "NoSuchCORSConfiguration"
 	ErrCodeNoSuchPublicAccessBlockConfiguration = "NoSuchPublicAccessBlockConfiguration"
+	ErrCodeObjectLockConfigurationNotFound      = "ObjectLockConfigurationNotFoundError"
 	ErrCodeOperationAborted                     = "OperationAborted"
 )
