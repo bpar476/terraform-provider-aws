@@ -138,6 +138,13 @@ func ResourceInstance() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 			},
+			"db_name": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				Computed:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"name"},
+			},
 			"db_subnet_group_name": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -287,10 +294,11 @@ func ResourceInstance() *schema.Resource {
 				Computed: true,
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
+				Type:          schema.TypeString,
+				Optional:      true,
+				Computed:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"db_name"},
 			},
 			"nchar_character_set_name": {
 				Type:     schema.TypeString,
@@ -668,18 +676,23 @@ func resourceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Error creating DB Instance: %s", err)
 		}
 	} else if v, ok := d.GetOk("s3_import"); ok {
+		dbName := d.Get("db_name").(string)
+		if dbName == "" {
+			dbName = d.Get("name").(string)
+		}
 
 		if _, ok := d.GetOk("allocated_storage"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "allocated_storage": required field is not set`, d.Get("name").(string))
+
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "allocated_storage": required field is not set`, dbName)
 		}
 		if _, ok := d.GetOk("engine"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "engine": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "engine": required field is not set`, dbName)
 		}
 		if _, ok := d.GetOk("password"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "password": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "password": required field is not set`, dbName)
 		}
 		if _, ok := d.GetOk("username"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "username": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "username": required field is not set`, dbName)
 		}
 
 		s3_bucket := v.([]interface{})[0].(map[string]interface{})
@@ -687,7 +700,7 @@ func resourceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
 			AllocatedStorage:        aws.Int64(int64(d.Get("allocated_storage").(int))),
 			AutoMinorVersionUpgrade: aws.Bool(d.Get("auto_minor_version_upgrade").(bool)),
 			CopyTagsToSnapshot:      aws.Bool(d.Get("copy_tags_to_snapshot").(bool)),
-			DBName:                  aws.String(d.Get("name").(string)),
+			DBName:                  aws.String(dbName),
 			DBInstanceClass:         aws.String(d.Get("instance_class").(string)),
 			DBInstanceIdentifier:    aws.String(d.Get("identifier").(string)),
 			DeletionProtection:      aws.Bool(d.Get("deletion_protection").(bool)),
@@ -710,10 +723,10 @@ func resourceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		if _, ok := d.GetOk("character_set_name"); ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "character_set_name" doesn't work with with restores"`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "character_set_name" doesn't work with with restores"`, dbName)
 		}
 		if _, ok := d.GetOk("timezone"); ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "timezone" doesn't work with with restores"`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "timezone" doesn't work with with restores"`, dbName)
 		}
 
 		attr := d.Get("backup_retention_period")
@@ -858,7 +871,16 @@ func resourceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
 			Tags:                    Tags(tags.IgnoreAWS()),
 		}
 
-		if attr, ok := d.GetOk("name"); ok {
+		if attr, ok := d.GetOk("db_name"); ok {
+			// "Note: This parameter [DBName] doesn't apply to the MySQL, PostgreSQL, or MariaDB engines."
+			// https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_RestoreDBInstanceFromDBSnapshot.html
+			switch strings.ToLower(d.Get("engine").(string)) {
+			case "mysql", "postgres", "mariadb":
+				// skip
+			default:
+				opts.DBName = aws.String(attr.(string))
+			}
+		} else if attr, ok := d.GetOk("name"); ok {
 			// "Note: This parameter [DBName] doesn't apply to the MySQL, PostgreSQL, or MariaDB engines."
 			// https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_RestoreDBInstanceFromDBSnapshot.html
 			switch strings.ToLower(d.Get("engine").(string)) {
@@ -1054,6 +1076,10 @@ func resourceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
 				input.AvailabilityZone = aws.String(v.(string))
 			}
 
+			if v, ok := d.GetOk("db_name"); ok {
+				input.DBName = aws.String(v.(string))
+			}
+
 			if v, ok := d.GetOk("domain"); ok {
 				input.Domain = aws.String(v.(string))
 			}
@@ -1134,22 +1160,27 @@ func resourceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
 			}
 		}
 	} else {
+		dbName := d.Get("db_name").(string)
+		if dbName == "" {
+			dbName = d.Get("name").(string)
+		}
+
 		if _, ok := d.GetOk("allocated_storage"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "allocated_storage": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "allocated_storage": required field is not set`, dbName)
 		}
 		if _, ok := d.GetOk("engine"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "engine": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "engine": required field is not set`, dbName)
 		}
 		if _, ok := d.GetOk("password"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "password": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "password": required field is not set`, dbName)
 		}
 		if _, ok := d.GetOk("username"); !ok {
-			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "username": required field is not set`, d.Get("name").(string))
+			return fmt.Errorf(`provider.aws: aws_db_instance: %s: "username": required field is not set`, dbName)
 		}
 
 		opts := rds.CreateDBInstanceInput{
 			AllocatedStorage:        aws.Int64(int64(d.Get("allocated_storage").(int))),
-			DBName:                  aws.String(d.Get("name").(string)),
+			DBName:                  aws.String(dbName),
 			DBInstanceClass:         aws.String(d.Get("instance_class").(string)),
 			DBInstanceIdentifier:    aws.String(d.Get("identifier").(string)),
 			DeletionProtection:      aws.Bool(d.Get("deletion_protection").(bool)),
@@ -1379,6 +1410,7 @@ func resourceInstanceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error reading DB Instance (%s): %w", d.Id(), err)
 	}
 
+	d.Set("db_name", v.DBName)
 	d.Set("name", v.DBName)
 	d.Set("identifier", v.DBInstanceIdentifier)
 	d.Set("resource_id", v.DbiResourceId)
