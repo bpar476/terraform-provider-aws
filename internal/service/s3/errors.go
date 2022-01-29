@@ -7,5 +7,7 @@ const (
 	ErrCodeNoSuchConfiguration                  = "NoSuchConfiguration"
 	ErrCodeNoSuchCORSConfiguration              = "NoSuchCORSConfiguration"
 	ErrCodeNoSuchPublicAccessBlockConfiguration = "NoSuchPublicAccessBlockConfiguration"
+	ErrCodeNoSuchWebsiteConfiguration           = "NoSuchWebsiteConfiguration"
+	ErrCodeNotImplemented                       = "NotImplemented"
 	ErrCodeOperationAborted                     = "OperationAborted"
 )
