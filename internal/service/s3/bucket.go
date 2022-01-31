@@ -842,7 +842,7 @@ func resourceBucketUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if d.HasChange("object_lock_configuration") {
-		if err := resourceBucketObjectLockConfigurationUpdate(conn, d); err != nil {
+		if err := resourceObjectLockConfigurationUpdate(conn, d); err != nil {
 			return err
 		}
 	}
@@ -1308,7 +1308,7 @@ func resourceBucketRead(d *schema.ResourceData, meta interface{}) error {
 
 	// Object lock not supported in all partitions (extra guard, also guards in read func)
 	if err != nil && (meta.(*conns.AWSClient).Partition == endpoints.AwsPartitionID || meta.(*conns.AWSClient).Partition == endpoints.AwsUsGovPartitionID) {
-		return fmt.Errorf("error getting S3 Bucket Object Lock configuration: %s", err)
+		return fmt.Errorf("error getting S3 Object Lock configuration: %s", err)
 	}
 
 	if err != nil {
@@ -1426,7 +1426,7 @@ func resourceBucketDelete(d *schema.ResourceData, meta interface{}) error {
 	if tfawserr.ErrMessageContains(err, "BucketNotEmpty", "") {
 		if d.Get("force_destroy").(bool) {
 			// Use a S3 service client that can handle multiple slashes in URIs.
-			// While aws_s3_bucket_object resources cannot create these object
+			// While aws_s3_object resources cannot create these object
 			// keys, other AWS services and applications using the S3 Bucket can.
 			conn = meta.(*conns.AWSClient).S3ConnURICleaningDisabled
 
@@ -2014,7 +2014,7 @@ func resourceBucketServerSideEncryptionConfigurationUpdate(conn *s3.S3, d *schem
 	return nil
 }
 
-func resourceBucketObjectLockConfigurationUpdate(conn *s3.S3, d *schema.ResourceData) error {
+func resourceObjectLockConfigurationUpdate(conn *s3.S3, d *schema.ResourceData) error {
 	// S3 Object Lock configuration cannot be deleted, only updated.
 	req := &s3.PutObjectLockConfigurationInput{
 		Bucket:                  aws.String(d.Get("bucket").(string)),
