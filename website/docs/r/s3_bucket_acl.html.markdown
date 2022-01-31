@@ -113,7 +113,7 @@ S3 bucket ACL can be imported using the `bucket` e.g.,
 $ terraform import aws_s3_bucket_acl.example bucket-name
 ```
 
-S3 bucket ACL can be also imported using the `bucket` and `acl` separated by a slash (`/`) e.g.,
+S3 bucket ACL can also be imported using the `bucket` and `acl` separated by a slash (`/`) e.g.,
 
 ```
 $ terraform import aws_s3_bucket_acl.example bucket-name/private
